@@ -286,7 +286,8 @@ Examples:
     elif args.command == "crawl":
         cmd_crawl(args.site)
     elif args.command == "all":
-        cmd_all(args.site, quick=args.quick)
+        cmd_discover(args.site, quick=args.quick)
+        cmd_crawl(args.site)
     elif args.command == "direct":
         cmd_direct(args.site, loop=args.loop)
     elif args.command == "cycle":

@@ -18,7 +18,6 @@ lxml>=5.0.0
 
 # ---- Chinese NLP ----
 jieba>=0.42.1
-pkuseg>=0.0.25
 snownlp>=0.12.3
 pyahocorasick>=2.1.0
 
