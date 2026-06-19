@@ -1,0 +1,56 @@
+# ================================================================
+# Python 项目 .gitignore
+# ================================================================
+
+# ---- Python artifacts ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ---- Virtual environment ----
+venv/
+.venv/
+env/
+conda_env/
+
+# ---- Data & database ----
+data/*
+!data/lexicon/
+data/lexicon/*
+!data/lexicon/sentiment_lexicon.tsv
+*.db
+*.sqlite
+*.sqlite3
+
+# ---- Logs ----
+*.log
+app.log
+
+# ---- IDE & editors ----
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ---- Claude ----
+.claude/
+
+# ---- Project-specific ----
+*.docx
+~$*
+
+# ---- Environment ----
+.env
+.env.local

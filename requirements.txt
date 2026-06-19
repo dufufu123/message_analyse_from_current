@@ -1,0 +1,35 @@
+# ============================================================
+# 文本内容安全系统 (Text Content Security System)
+# Python Dependencies
+# ============================================================
+
+# ---- Web Crawling ----
+scrapy>=2.11.0
+
+# ---- Database ----
+sqlalchemy>=2.0.0
+
+# ---- Data Processing ----
+pandas>=2.2.0
+numpy>=1.26.0
+beautifulsoup4>=4.12.0
+html2text>=2024.0
+lxml>=5.0.0
+
+# ---- Chinese NLP ----
+jieba>=0.42.1
+pkuseg>=0.0.25
+snownlp>=0.12.3
+pyahocorasick>=2.1.0
+
+# ---- Web Application ----
+streamlit>=1.32.0
+
+# ---- Visualization ----
+matplotlib>=3.8.0
+plotly>=5.18.0
+seaborn>=0.13.0
+wordcloud>=1.9.0
+
+# ---- Testing ----
+pytest>=8.0.0
