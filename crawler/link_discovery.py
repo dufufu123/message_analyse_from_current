@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 # 输出文件
 DISCOVERED_URLS_FILE = DATA_DIR / "raw" / "discovered_urls.json"
+# 确保目录存在
+DISCOVERED_URLS_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 # 请求头
 HEADERS = {
