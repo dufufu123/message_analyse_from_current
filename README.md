@@ -119,7 +119,7 @@ project-trainning-3/
 ├── utils/
 │   ├── logger.py / text_cleaner.py
 └── data/
-    ├── lexicon/sentiment_lexicon.tsv  # 985词情感词典 (git追踪)
+    ├── lexicon/sentiment_lexicon.tsv  # 情感词典 (git追踪)
     ├── raw/ / processed/ / models/ / figures/ (git忽略)
 ```
 
