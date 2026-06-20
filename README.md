@@ -218,7 +218,7 @@ print(result.score, result.flags)
 | 爬虫 | Scrapy + RSS + DOM直采 | 65站点，5种发现方式，并发采集+去重 |
 | 数据库 | SQLite + SQLAlchemy | 零配置单文件 |
 | 分词 | jieba / 自定义MaxMatch / 自定义DP | 三种方法论完全不同 |
-| 情感分析 | 985词情感词典 + 否定窗口 + 程度副词 | 基于分词token的词边界匹配 |
+| 情感分析 | 词情感词典 + 否定窗口 + 程度副词 | 基于分词token的词边界匹配 |
 | 敏感检测 | pyahocorasick (AC自动机) | O(n+m+z) 词边界匹配 |
 | 有害检测 | 三层过滤 (正则→AC→规则) | 200K记录数分钟完成 |
 | 可视化 | Plotly + Matplotlib + WordCloud | 交互+静态双轨 |
