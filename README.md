@@ -1,6 +1,6 @@
-# 🛡️ 文本内容安全系统 (Text Content Security System)
+# 🛡️ 文本内容安全系(message_analyse_from_current)
 
-> **工程实训3 · 实验1 · 信息内容安全方向**
+> **快速获取最新的网页信息并检测内容安全**
 
 ---
 
