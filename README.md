@@ -81,7 +81,7 @@ project-trainning-3/
 │   ├── negation_words.txt          # 否定词列表
 │   └── intensifier_words.txt       # 程度副词+倍率
 ├── crawler/
-│   ├── site_profiles.py            # 65站点配置 (RSS/Sitemap/选择器)
+│   ├── site_profiles.py            # 站点配置 (RSS/Sitemap/选择器)
 │   ├── link_discovery.py           # 链接发现 (RSS→Sitemap→归档→首页)
 │   ├── items.py / pipelines.py / middlewares.py / settings.py
 │   ├── run_crawler.py              # 编排 (discover/crawl/direct/cycle)
@@ -161,18 +161,49 @@ python -c "from database.models import init_database; init_database()"
 
 ### 运行爬虫
 
+#### 一键命令
+
 | 模式 | 命令 | 说明 |
 |------|------|------|
-| 🧪 快速测试 | `python crawler/run_crawler.py --quick` | 1-2分钟验证流程 |
-| 🚀 循环采集 | `python crawler/run_crawler.py cycle` | 自动循环到20万 |
-| 🔍 DOM直采 | `python crawler/run_crawler.py direct` | 翻页模式（单次） |
-| ♾️ 直采循环 | `python crawler/run_crawler.py direct --loop` | 自动循环直采 |
-| 📋 站点列表 | `python crawler/run_crawler.py list` | 65个站点一览 |
+| 🔄 全流程 | `python crawler/run_crawler.py` | discover + crawl 一键执行 |
+| 🧪 快速测试 | `python crawler/run_crawler.py --quick` | 每站~30条URL，1-2分钟验证流程 |
+| 🚀 循环采集 | `python crawler/run_crawler.py cycle` | 自动循环发现+抓取，直到20万条目标 |
+| ⚡ 快速循环 | `python crawler/run_crawler.py cycle --quick` | 快速循环模式，5000条目标 |
+
+#### 分步命令
+
+| 阶段 | 命令 | 说明 |
+|------|------|------|
+| 📡 发现链接（全站） | `python crawler/run_crawler.py discover` | RSS → Sitemap → 归档页 → 首页，四种方式覆盖65站点 |
+| 📡 发现链接（指定站） | `python crawler/run_crawler.py discover cnblogs` | 只发现 cnblogs 的链接 |
+| 🕷️ 抓取文章（全站） | `python crawler/run_crawler.py crawl` | 从 discovered_urls.json 加载URL，通用爬虫抓取 |
+| 🕷️ 抓取文章（指定站） | `python crawler/run_crawler.py crawl cnblogs` | 只抓取 cnblogs 的文章 |
+| 🔍 DOM直采 | `python crawler/run_crawler.py direct` | 翻页直采模式（单次），适合列表页站点 |
+| 🔍 DOM直采（指定站） | `python crawler/run_crawler.py direct cnblogs` | 只直采 cnblogs |
+| ♾️ 直采循环 | `python crawler/run_crawler.py direct --loop` | 直采模式自动循环到20万 |
+| 📋 站点列表 | `python crawler/run_crawler.py list` | 查看65个站点配置（RSS/Sitemap/类别） |
+
+### 数据库查询
+
+```bash
+# 查看数据库整体统计
+python -c "from database.connection import get_db_stats; import json; print(json.dumps(get_db_stats(), indent=2))"
+
+# 查看各来源站点分布
+python -c "from database.connection import get_source_site_stats; print(get_source_site_stats())"
+```
 
 ### 分析管道
 
 ```bash
+# 处理全部未分析页面（分词 → 敏感 → 情感 → 有害）
 python -c "from analysis.report import BatchProcessor; BatchProcessor().process_all()"
+
+# 限制处理数量（测试用）
+python -c "from analysis.report import BatchProcessor; BatchProcessor().process_all(max_pages=500)"
+
+# 生成汇总报告
+python -c "from analysis.report import generate_summary_report; import json; print(json.dumps(generate_summary_report(), ensure_ascii=False, indent=2))"
 ```
 
 ### 启动Web应用
@@ -183,30 +214,95 @@ streamlit run app.py
 
 浏览器打开 `http://localhost:8501`
 
+7个页面：首页仪表盘 → 爬虫控制 → EDA可视化 → 分词对比 → 敏感性检测 → 情感分析 → 有害信息检测
+
 ---
 
 ## 🧪 快速测试 (Python Console)
 
+### 分词
+
 ```python
-# 分词
 from segmentation.algorithm_jieba import JiebaSegmenter
 from segmentation.algorithm_max_match import MaxMatchSegmenter
 from segmentation.algorithm_dp import DPUnigramSegmenter
+
 t = '文本内容安全系统是工程实训的重要课题'
 print('/'.join(JiebaSegmenter().segment(t)))
 print('/'.join(MaxMatchSegmenter().segment(t)))
 print('/'.join(DPUnigramSegmenter().segment(t)))
 
-# 情感分析 (基于分词token)
-from analysis.sentiment import SentimentAnalyzer
-analyzer = SentimentAnalyzer()
-result = analyzer.analyze(['这个','产品','非常','优秀'])
-print(result.label, result.score)
+# 批量分词
+jieba = JiebaSegmenter()
+print(jieba.batch_segment(['今天天气真好', '我们在学习Python编程']))
+```
 
-# 敏感性检测 (基于分词token)
+### 情感分析 (基于分词token)
+
+```python
+from analysis.sentiment import SentimentAnalyzer
+from segmentation.algorithm_jieba import JiebaSegmenter
+
+seg = JiebaSegmenter()
+analyzer = SentimentAnalyzer()
+
+# 单条分析 — 必须先分词
+tokens = seg.segment('这个产品非常好用，我很喜欢')
+result = analyzer.analyze(tokens)
+print(result.label, result.score, result.confidence)
+
+# 批量分析
+texts = ['这个产品非常好用', '服务太差了，非常失望']
+tokens_list = seg.batch_segment(texts)
+results = analyzer.batch_analyze(tokens_list)
+for r in results:
+    print(r.label, r.score)
+```
+
+### 敏感性检测 (基于分词token)
+
+```python
 from analysis.sensitivity import SensitivityDetector
-result = SensitivityDetector().detect(['提供','赌博','服务'])
-print(result.score, result.flags)
+from segmentation.algorithm_jieba import JiebaSegmenter
+
+seg = JiebaSegmenter()
+detector = SensitivityDetector()
+
+# 单条检测 — 必须先分词
+tokens = seg.segment('提供各种赌博服务，加QQ投注六合彩')
+result = detector.detect(tokens)
+print(result.score, result.flags, result.matched_words)
+
+# 批量检测
+tokens_list = seg.batch_segment(['提供赌博服务', '正常新闻内容'])
+results = detector.batch_detect(tokens_list)
+```
+
+### 有害信息检测 (基于分词token + 原始文本)
+
+```python
+from analysis.harmful_detector import HarmfulDetector
+from segmentation.algorithm_jieba import JiebaSegmenter
+
+seg = JiebaSegmenter()
+detector = HarmfulDetector()
+
+text = '加微信免费领取，兼职刷单日赚1000，银行卡号6222021234567890'
+tokens = seg.segment(text)
+result = detector.detect(tokens, raw_text=text)
+print(result.score, result.is_harmful, result.flags)
+print('Layer1(正则):', result.layer1_matches)
+print('Layer2(关键词):', result.layer2_matches)
+```
+
+### EDA 统计
+
+```python
+from eda.statistics import load_dataframe, site_distribution, word_frequency_from_seg
+
+df = load_dataframe()
+print(site_distribution(df))
+print(word_frequency_from_seg(df, algorithm='jieba', top_n=20))
 ```
 
 ---

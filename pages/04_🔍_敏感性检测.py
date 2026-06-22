@@ -9,6 +9,7 @@ import pandas as pd
 from database.models import WebPage, get_session
 from sqlalchemy import func
 from analysis.sensitivity import SensitivityDetector
+from segmentation.algorithm_jieba import JiebaSegmenter
 
 st.set_page_config(page_title="敏感性检测", page_icon="🔍", layout="wide")
 
@@ -35,14 +36,46 @@ import random
 
 @st.cache_data
 def load_sensitive_data(min_score: float, categories: list[str], limit: int):
+    """Load sensitive pages with progressive batch fetching.
+
+    Strategy: fetch from DB in batches → filter by category in Python →
+    accumulate until we have enough results. This avoids loading all
+    ~200K rows into memory when only 100 are needed.
+    """
+    BATCH_SIZE = 2000          # rows per DB fetch
+    MAX_SCAN = 50000           # safety cap: don't scan endlessly
+
+    result = []
+    offset = 0
+
     with get_session() as session:
-        return (
-            session.query(WebPage)
-            .filter(WebPage.processed >= 2, WebPage.sensitivity_score >= min_score)
-            .order_by(WebPage.id)
-            .limit(limit)
-            .all()
-        )
+        while len(result) < limit and offset < MAX_SCAN:
+            batch = (
+                session.query(WebPage)
+                .filter(
+                    WebPage.processed >= 2,
+                    WebPage.sensitivity_score >= min_score,
+                )
+                .order_by(WebPage.sensitivity_score.desc())
+                .offset(offset)
+                .limit(BATCH_SIZE)
+                .all()
+            )
+
+            if not batch:
+                break  # no more rows in DB
+
+            for p in batch:
+                flags = p.get_sensitivity_flags()
+                if categories and not any(f in categories for f in flags):
+                    continue
+                result.append(p)
+                if len(result) >= limit:
+                    return result  # early exit — got enough
+
+            offset += BATCH_SIZE
+
+    return result
 
 pages = load_sensitive_data(min_score, categories, limit)
 
@@ -69,9 +102,6 @@ st.markdown("### 📋 检测结果")
 rows = []
 for p in pages:
     flags = p.get_sensitivity_flags()
-    # Filter by selected categories
-    if categories and not any(f in categories for f in flags):
-        continue
     rows.append({
         "ID": p.id,
         "标题": p.title[:80] if p.title else "",
@@ -125,12 +155,23 @@ demo_text = st.text_area(
 )
 
 if st.button("🔍 检测敏感性", type="primary") and demo_text:
+    # Step 1: Segment the input text (required by SensitivityDetector)
+    segmenter = JiebaSegmenter(mode="accurate")
+    tokens = segmenter.segment(demo_text)
+
+    # Step 2: Run sensitivity detection on tokens
     detector = SensitivityDetector()
-    result = detector.detect(demo_text)
+    result = detector.detect(tokens)
+
     st.markdown(f"**敏感性分数**: {result.score}")
     st.markdown(f"**是否敏感**: {'⚠️ 是' if result.is_sensitive else '✅ 否'}")
     if result.flags:
         st.markdown(f"**敏感类别**: {', '.join(result.flags)}")
+
+    # Show the segmented tokens for transparency
+    with st.expander("查看分词结果"):
+        st.text(" | ".join(tokens))
+
     if result.matched_words:
         st.markdown("**匹配的敏感词**:")
         st.dataframe(pd.DataFrame(result.matched_words), width="stretch")

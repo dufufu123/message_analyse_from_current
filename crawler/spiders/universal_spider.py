@@ -20,7 +20,6 @@ import scrapy
 
 from crawler.items import WebPageItem
 from crawler.site_profiles import SITE_PROFILES
-from utils.text_cleaner import clean_text as do_clean
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +89,7 @@ class UniversalArticleSpider(scrapy.Spider):
 
         # 批量查询DB中已存在的URL，只保留新的
         from database.models import WebPage, get_session, get_engine
-        from sqlalchemy import select
+
 
         existing = set()
         # 分批查询，每次最多10000个URL

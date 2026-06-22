@@ -10,6 +10,7 @@ import plotly.express as px
 from database.models import WebPage, get_session
 from sqlalchemy import func
 from analysis.harmful_detector import HarmfulDetector
+from segmentation.algorithm_jieba import JiebaSegmenter
 
 st.set_page_config(page_title="有害信息检测", page_icon="🛡️", layout="wide")
 
@@ -35,14 +36,50 @@ with st.sidebar:
 import random
 
 @st.cache_data
-def load_harmful_data(harmful_only: bool, limit: int):
-    with get_session() as session:
-        query = session.query(WebPage).filter(WebPage.processed >= 2)
-        if harmful_only:
-            query = query.filter(WebPage.harmful_is_harmful == 1)
-        return query.order_by(WebPage.id).limit(limit).all()
+def load_harmful_data(harmful_only: bool, categories: list[str], limit: int):
+    """Load harmful pages with progressive batch fetching.
 
-pages = load_harmful_data(show_harmful_only, limit)
+    Strategy: fetch from DB in batches → filter by category in Python →
+    accumulate until we have enough results. This avoids loading all
+    ~200K rows into memory when only 100 are needed.
+    """
+    BATCH_SIZE = 2000          # rows per DB fetch
+    MAX_SCAN = 50000           # safety cap: don't scan endlessly
+
+    result = []
+    offset = 0
+
+    with get_session() as session:
+        while len(result) < limit and offset < MAX_SCAN:
+            query = (
+                session.query(WebPage)
+                .filter(WebPage.processed >= 2)
+            )
+            if harmful_only:
+                query = query.filter(WebPage.harmful_is_harmful == 1)
+            batch = (
+                query.order_by(WebPage.harmful_score.desc())
+                .offset(offset)
+                .limit(BATCH_SIZE)
+                .all()
+            )
+
+            if not batch:
+                break  # no more rows in DB
+
+            for p in batch:
+                flags = p.get_harmful_flags()
+                if categories and not any(f in categories for f in flags):
+                    continue
+                result.append(p)
+                if len(result) >= limit:
+                    return result  # early exit — got enough
+
+            offset += BATCH_SIZE
+
+    return result
+
+pages = load_harmful_data(show_harmful_only, categories, limit)
 
 st.markdown(f"**找到 {len(pages)} 条记录**")
 
@@ -75,9 +112,6 @@ if pages:
     rows = []
     for p in pages:
         flags = p.get_harmful_flags()
-        # Filter by selected categories
-        if categories and not any(f in categories for f in flags):
-            continue
         rows.append({
             "ID": p.id,
             "标题": p.title[:80] if p.title else "",
@@ -147,8 +181,13 @@ demo_text = st.text_area(
 )
 
 if st.button("🛡️ 检测有害信息", type="primary") and demo_text:
+    # Step 1: Segment the input text (required by HarmfulDetector)
+    segmenter = JiebaSegmenter(mode="accurate")
+    tokens = segmenter.segment(demo_text)
+
+    # Step 2: Run harmful detection on tokens + raw_text
     detector = HarmfulDetector()
-    result = detector.detect(demo_text)
+    result = detector.detect(tokens, raw_text=demo_text)
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -157,6 +196,9 @@ if st.button("🛡️ 检测有害信息", type="primary") and demo_text:
         st.metric("是否有害", "⚠️ 是" if result.is_harmful else "✅ 否")
     with col3:
         st.metric("有害类别", ", ".join(result.flags) if result.flags else "无")
+
+    with st.expander("查看分词结果"):
+        st.text(" | ".join(tokens))
 
     if result.layer1_matches:
         st.markdown("**Layer 1 — 正则模式匹配**:")

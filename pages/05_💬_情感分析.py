@@ -10,6 +10,7 @@ import plotly.express as px
 from database.models import WebPage, get_session
 from sqlalchemy import func
 from analysis.sentiment import SentimentAnalyzer
+from segmentation.algorithm_jieba import JiebaSegmenter
 
 st.set_page_config(page_title="情感分析", page_icon="💬", layout="wide")
 
@@ -112,8 +113,13 @@ demo_text = st.text_area(
 )
 
 if st.button("💬 分析情感", type="primary") and demo_text:
+    # Step 1: Segment the input text (required by SentimentAnalyzer)
+    segmenter = JiebaSegmenter(mode="accurate")
+    tokens = segmenter.segment(demo_text)
+
+    # Step 2: Run sentiment analysis on tokens
     analyzer = SentimentAnalyzer()
-    result = analyzer.analyze(demo_text)
+    result = analyzer.analyze(tokens)
 
     col1, col2, col3 = st.columns(3)
     emoji = {"positive": "😊", "negative": "😞", "neutral": "😐"}
@@ -124,3 +130,6 @@ if st.button("💬 分析情感", type="primary") and demo_text:
     with col3:
         st.metric("置信度", f"{result.confidence:.4f}")
     st.markdown(f"**分析方法**: {result.method}")
+
+    with st.expander("查看分词结果"):
+        st.text(" | ".join(tokens))
