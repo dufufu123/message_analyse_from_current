@@ -1,4 +1,4 @@
-# 🛡️ 文本内容安全系(message_analyse_from_current)
+# 🛡️ 文本内容安全系统(message_analyse_from_current)
 
 > **快速获取最新的网页信息并检测内容安全**
 
